@@ -4,7 +4,25 @@ All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-10-10
+
+### Removed
+
+- **Today's spend.** The readout is now balance plus the current price window.
+  Measuring a day correctly needed a replay of every session log (a day usually
+  starts before DSH does), and even then it could not see API calls made outside
+  DSH with the same key — so the number was structurally low and easy to
+  misread. Balance is the official figure and needs none of that machinery.
+- Consequently gone: the per-day ledger, the session-log replay and its zstd
+  frame splitting, the `session/event` usage listener, the model price table,
+  `measureDay` / `costOf` / `priceFor` / `beijingDay`, and the two tools that
+  supported them. The Host half dropped from 736 to about 280 lines and the
+  plugin now writes no files at all.
+
+### Added
+
+- The expanded detail now names where the number came from (API key vs signed-in
+  account) and when it was fetched.
 
 ## [1.0.1] - 2026-10-10
 

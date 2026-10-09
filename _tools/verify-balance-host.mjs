@@ -1,8 +1,11 @@
 /**
  * Offline harness for the Host half: builds a stub Cordis context, mounts the
  * plugin, then drives the registered route handler so the whole data path
- * (credential resolve -> balance fetch -> ledger -> JSON body) is exercised
- * without the browser.
+ * (credential resolve -> balance fetch -> JSON body) is exercised without the
+ * browser.
+ *
+ * The peak/off-peak rules are asserted directly as well, so a wrong window table
+ * fails here rather than in someone's sidebar.
  *
  * Usage: node _tools/verify-balance-host.mjs
  */
@@ -11,22 +14,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const plugin = await import(pathToFileURL(path.join(here, '..', 'lib', 'index.js')).href)
-const { measureDay, beijingDay } = plugin
+const { isPeak, nextSwitchAt } = plugin
 
 const routes = new Map()
-const events = new Map()
-
-const ledgerPath = path.join(process.env.DSH_HOME ?? '', 'dsh-balance-peek', 'ledger.json')
-console.log('ledger path:', ledgerPath)
 
 const ctx = {
   effect(fn) {
     const dispose = fn()
     return () => dispose?.()
   },
-  on(name, handler) {
-    events.set(name, handler)
-    return () => events.delete(name)
+  on() {
+    return () => {}
   },
   get(name) {
     if (name === 'credentials') {
@@ -37,7 +35,7 @@ const ctx = {
     if (name === 'connection') return undefined // simulate a host without the fence
     return undefined
   },
-  inject(deps, callback) {
+  inject(_deps, callback) {
     callback(ctx)
     return () => {}
   },
@@ -47,22 +45,10 @@ const ctx = {
       return () => routes.delete(route.path)
     },
   },
-  slots: { inject: () => {}, register: () => {} },
 }
 
 plugin.default.apply(ctx)
 console.log('routes:', [...routes.keys()])
-console.log('events:', [...events.keys()])
-
-// Feed one synthetic assistant step so "today" has something to report.
-const step = {
-  type: 'assistant/message',
-  data: {
-    turn: 1,
-    usage: { inputTokens: 800_000, cacheReadTokens: 200_000, outputTokens: 120_000 },
-    message: { source: { model: 'deepseek-flash' } },
-  },
-}
 
 const route = routes.get('/dsh-balance/state.json')
 if (!route) {
@@ -89,24 +75,6 @@ function fakeResponse() {
 }
 
 const req = { method: 'GET', url: '/dsh-balance/state.json', headers: { host: '127.0.0.1:19387' } }
-
-// The ledger persists across runs, so compare against the baseline rather than
-// assuming an empty day.
-const beforeRes = fakeResponse()
-await route.handler(req, beforeRes)
-const before = JSON.parse(beforeRes.body)
-
-// The plugin replays the session logs at mount, so the live route must already
-// report at least what an independent replay of the same day measures. This is
-// the regression that made the sidebar read ¥0.64 for a ¥1.49 day: a session
-// that started before DSH did was only counted from the moment the plugin
-// loaded.
-const replayed = measureDay(path.join(process.env.DSH_HOME ?? '', 'sessions'), beijingDay())
-
-// Now feed a synthetic step: the live feed books it, and the next replay must
-// not lose it (observeDay takes the larger of the two, never the sum).
-events.get('session/event')?.(null, step)
-
 const res = fakeResponse()
 await route.handler(req, res)
 
@@ -114,35 +82,53 @@ console.log('\nHTTP', res.status)
 console.log('content-type:', res.headers?.['Content-Type'])
 const body = JSON.parse(res.body)
 console.log(JSON.stringify(body, null, 2))
-console.log('\nindependent replay of today:', JSON.stringify(replayed))
+
+// 2026-10-09 is a Friday, right after the National Day holiday week.
+const bj = (y, mo, d, hh, mm = 0) => Date.UTC(y, mo - 1, d, hh - 8, mm)
 
 const checks = [
   ['ok flag', body.ok === true],
   ['currency is a string', typeof body.currency === 'string'],
+  ['balance is a number or null', body.balance === null || typeof body.balance === 'number'],
+  ['no spend fields leak into the payload', body.today === undefined && body.ledger === undefined],
   ['period.peak is boolean', typeof body.period?.peak === 'boolean'],
   ['period.nextSwitchAt is a number', typeof body.period?.nextSwitchAt === 'number'],
   ['peakHours is 2 windows', Array.isArray(body.period?.peakHours) && body.period.peakHours.length === 2],
-  ['replay found steps today', replayed.steps > 0],
-  ['reported cost covers the replayed day', body.today.cost >= replayed.cost],
-  ['reported steps cover the replayed day', body.today.steps >= replayed.steps],
-  ['reported tokens cover the replayed day', body.today.tokens >= replayed.tokens],
-  ['synthetic step did not double-count', body.today.steps <= replayed.steps + 1],
-  ['cost grew by the flash rate for that step', body.today.cost > before.today.cost],
-  ['cost stays finite', Number.isFinite(body.today?.cost)],
-  ['ledger carries today', Boolean(body.ledger?.days && Object.keys(body.ledger.days).length >= 1)],
-  ['data directory is the plugin ledger', true],
+  ['serverTime is a number', typeof body.serverTime === 'number'],
+
+  ['peak: Fri 10:00', isPeak(bj(2026, 10, 9, 10)) === true],
+  ['valley: Fri 12:00', isPeak(bj(2026, 10, 9, 12)) === false],
+  ['peak: Fri 14:00', isPeak(bj(2026, 10, 9, 14)) === true],
+  ['valley: Fri 18:00', isPeak(bj(2026, 10, 9, 18)) === false],
+  ['valley: Sat 10:00', isPeak(bj(2026, 10, 10, 10)) === false],
+  ['valley: holiday Thu 2026-10-01 10:00', isPeak(bj(2026, 10, 1, 10)) === false],
+  ['peak: Thu 2026-10-08 09:00', isPeak(bj(2026, 10, 8, 9)) === true],
+  [
+    'next switch from Fri 20:00 is Mon 09:00',
+    new Date(nextSwitchAt(bj(2026, 10, 9, 20))).toISOString() === new Date(bj(2026, 10, 12, 9)).toISOString(),
+  ],
+  [
+    'next switch from Fri 10:30 is 12:00',
+    new Date(nextSwitchAt(bj(2026, 10, 9, 10, 30))).toISOString() === new Date(bj(2026, 10, 9, 12)).toISOString(),
+  ],
 ]
 
 let failed = 0
+console.log('')
 for (const [label, pass] of checks) {
   if (!pass) failed++
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${label}`)
 }
 
-// A second request must be served from cache rather than refetching.
+// A second request must be answered consistently.
 const res2 = fakeResponse()
 await route.handler(req, res2)
-console.log(JSON.parse(res2.body).balanceError === body.balanceError ? 'PASS  second request stable' : 'FAIL  second request drifted')
+const body2 = JSON.parse(res2.body)
+console.log(
+  body2.balanceError === body.balanceError && body2.period.peak === body.period.peak
+    ? 'PASS  second request stable'
+    : 'FAIL  second request drifted',
+)
 
 console.log(failed === 0 ? '\nALL CHECKS PASSED' : `\n${failed} CHECK(S) FAILED`)
 process.exit(failed === 0 ? 0 : 1)
