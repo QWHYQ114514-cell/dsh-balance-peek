@@ -40,6 +40,9 @@
   "engines": {
     "node": ">=20"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dsh": {
     "manifestVersion": 1,
     "bundle": {
