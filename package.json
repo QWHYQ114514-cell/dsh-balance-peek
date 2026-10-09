@@ -1,0 +1,52 @@
+{
+  "name": "dsh-balance-peek",
+  "version": "1.0.0",
+  "description": "在 DSH 侧边栏底部用两行极简文字显示 DeepSeek 余额、当日花费与当前峰/谷时段。Minimal text balance / daily-spend / peak-valley readout at the DSH sidebar foot.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "author": "QWHYQ114514-celle",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QWHYQ114514-celle/dsh-balance-peek.git"
+  },
+  "homepage": "https://github.com/QWHYQ114514-celle/dsh-balance-peek#readme",
+  "bugs": {
+    "url": "https://github.com/QWHYQ114514-celle/dsh-balance-peek/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "deepseek",
+    "balance",
+    "sidebar",
+    "peak-valley",
+    "cost"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  }
+}

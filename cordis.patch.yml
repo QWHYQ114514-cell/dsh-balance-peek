@@ -1,0 +1,11 @@
+# Bundle patch for dsh-balance-peek.
+#
+# Declaring `dsh.bundle.patch` in package.json is what makes this package a
+# PROFILE LAYER rather than an inert dependency: DSH reconciles
+# `dsh.profile.bundles` against the installed dependencies and applies this
+# patch on top of the profile root. The single row below mounts both halves of
+# the plugin — the Host half (balance fetch + ledger + JSON route) and, through
+# the package's `dsh.client` declaration, the browser half in the sidebar foot.
+- insert:
+    - id: dsh-balance-peek
+      name: dsh-balance-peek

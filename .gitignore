@@ -1,0 +1,14 @@
+# npm / editor noise
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+.npm-cache/
+
+# OS noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# local experiments
+*.local
+*.tgz
