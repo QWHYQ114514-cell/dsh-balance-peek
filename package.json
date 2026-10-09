@@ -1,6 +1,6 @@
 {
   "name": "dsh-balance-peek",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "在 DSH 侧边栏底部用两行极简文字显示 DeepSeek 余额、当日花费与当前峰/谷时段。Minimal text balance / daily-spend / peak-valley readout at the DSH sidebar foot.",
   "type": "module",
   "main": "lib/index.js",

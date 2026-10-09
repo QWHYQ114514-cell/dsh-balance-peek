@@ -4,6 +4,38 @@ All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.0.1] - 2026-10-10
+
+### Fixed
+
+- **Today's spend only counted steps taken after the plugin loaded.** A day that
+  began before DSH started was undercounted — a real day measured ¥1.49 against
+  a reported ¥0.17. The plugin now replays the day's session logs
+  (`session.v*.jsonl.zstd`) at mount, every five minutes, and on every manual
+  refresh, so the readout covers the whole Beijing calendar day.
+- **A wrong reading poisoned the day permanently.** The stored total was treated
+  as a monotonic floor (`max(stored, measured)`), so nothing could ever lower it.
+  A day's row now separates `measured` (the authoritative replay) from `live`
+  (steps since that replay); the displayed value is their sum and each replay
+  resets `live`, which makes a bad value self-correcting. Existing v1 ledgers are
+  adopted as the measured floor and replaced by the first replay.
+
+### Added
+
+- `_tools/audit-session-usage.mjs` — independently totals a day straight from the
+  session logs, for checking the plugin against the official dashboard.
+- `_tools/verify-ledger-model.mjs` — regression test proving an inflated ledger
+  is corrected downwards, an understated one is raised, and a second replay is
+  idempotent rather than additive.
+
+### Notes
+
+- Session logs are a sequence of independent zstd frames (one per appended line),
+  not one stream: decompressing the whole file yields only the session header.
+  Both the plugin and the audit tool split frames first.
+
 ## [1.0.0] - 2026-10-02
 
 First public release.

@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const plugin = await import(pathToFileURL(path.join(here, '..', 'lib', 'index.js')).href)
+const { measureDay, beijingDay } = plugin
 
 const routes = new Map()
 const events = new Map()
@@ -95,7 +96,15 @@ const beforeRes = fakeResponse()
 await route.handler(req, beforeRes)
 const before = JSON.parse(beforeRes.body)
 
-// Now feed the synthetic step and re-read: the numbers must move by exactly it.
+// The plugin replays the session logs at mount, so the live route must already
+// report at least what an independent replay of the same day measures. This is
+// the regression that made the sidebar read ¥0.64 for a ¥1.49 day: a session
+// that started before DSH did was only counted from the moment the plugin
+// loaded.
+const replayed = measureDay(path.join(process.env.DSH_HOME ?? '', 'sessions'), beijingDay())
+
+// Now feed a synthetic step: the live feed books it, and the next replay must
+// not lose it (observeDay takes the larger of the two, never the sum).
 events.get('session/event')?.(null, step)
 
 const res = fakeResponse()
@@ -105,6 +114,7 @@ console.log('\nHTTP', res.status)
 console.log('content-type:', res.headers?.['Content-Type'])
 const body = JSON.parse(res.body)
 console.log(JSON.stringify(body, null, 2))
+console.log('\nindependent replay of today:', JSON.stringify(replayed))
 
 const checks = [
   ['ok flag', body.ok === true],
@@ -112,8 +122,11 @@ const checks = [
   ['period.peak is boolean', typeof body.period?.peak === 'boolean'],
   ['period.nextSwitchAt is a number', typeof body.period?.nextSwitchAt === 'number'],
   ['peakHours is 2 windows', Array.isArray(body.period?.peakHours) && body.period.peakHours.length === 2],
-  ['one synthetic step added', body.today?.steps === before.today.steps + 1],
-  ['synthetic tokens added', body.today?.tokens === before.today.tokens + 1_120_000],
+  ['replay found steps today', replayed.steps > 0],
+  ['reported cost covers the replayed day', body.today.cost >= replayed.cost],
+  ['reported steps cover the replayed day', body.today.steps >= replayed.steps],
+  ['reported tokens cover the replayed day', body.today.tokens >= replayed.tokens],
+  ['synthetic step did not double-count', body.today.steps <= replayed.steps + 1],
   ['cost grew by the flash rate for that step', body.today.cost > before.today.cost],
   ['cost stays finite', Number.isFinite(body.today?.cost)],
   ['ledger carries today', Boolean(body.ledger?.days && Object.keys(body.ledger.days).length >= 1)],

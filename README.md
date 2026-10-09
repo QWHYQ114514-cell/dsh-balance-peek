@@ -59,8 +59,11 @@ dsh plugin --profile desktop remove dsh-balance-peek
 
 - **余额**：调用官方 `https://api.deepseek.com/user/balance`，凭据来自 DSH 的 `credentials` 服务；取不到 key 时退回 `deepseekAccount.getBalance()`（登录账号的钱包）。
 - **当日花费**：由 DSH 真实的每步用量事件（`session/event` 里的 `assistant/message.usage`）按上面的价目表和**该步发生时刻**的峰谷价累加得出 —— 不是用余额差估算，所以不会因为余额接口的缓存延迟而滞后或算错。
+- **覆盖整个自然日**：插件启动时会**回放当天的会话日志**（`$DSH_HOME/sessions/**/session.v*.jsonl.zstd`），把当天已经在 DSH 里花掉的用量补进账本。因此即使 DSH（或本插件）是当天稍晚才启动的，显示的也是**从北京时间 0 点起的全部消耗**，而不是「插件加载之后」的那一部分。之后每 5 分钟、以及每次点击刷新时重新回放一次。
 - **持久化**：按北京日期累计，写入 `$DSH_HOME/dsh-balance-peek/ledger.json`（默认 `~/.dsh/dsh-balance-peek/ledger.json`），保留约 400 天，重启不丢当日进度。
 - 余额上升会被识别为**充值**并单独计数，不会污染当日花费。
+
+> **账本模型**：每天的记录分两部分 —— `measured`（回放的绝对总量，权威）与 `live`（上次回放之后新发生的步数）。显示值是两者之和，每次回放会把 `live` 清零重算，所以任何一次错误读数都会被下一次回放**纠正**，而不是像取最大值那样被永久保留。
 
 ## 结构
 
@@ -102,8 +105,8 @@ GET /dsh-balance/state.json[?refresh=1]
 | 侧边栏底部什么都没有 | 包名没进 profile `package.json` 的 `dsh.profile.bundles`（只 add 依赖不算挂载）。补上后刷新页面。 |
 | 显示 `未配置 DEEPSEEK_API_KEY…` | 该 key 不在 DSH 凭据里，且当前未登录 DeepSeek 账号。到「设置 → 模型」配置 API Key。 |
 | 余额是 `—` | 接口请求失败，展开明细能看到具体错误（HTTP 状态、超时等）。 |
-| 当日花费比预期少 | 只统计**插件加载之后**发生的用量事件；插件未运行期间的消耗不会补记。 |
-| 数字不刷新 | 插件每分钟轮询一次；点一下那两行可强制刷新。 |
+| 当日花费比预期少 | 只有当天的会话日志无法读取时才会发生（检查 `DSH_BALANCE_PEEK_SESSIONS` 或 `$DSH_HOME/sessions`）；展开明细能看到回放是否报错。 |
+| 数字不刷新 | 插件每分钟轮询一次、每 5 分钟回放一次日志；点一下那两行可强制刷新并立即回放。 |
 
 ## 开发
 
