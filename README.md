@@ -16,7 +16,7 @@
 
 ```sh
 # 从 GitHub 安装
-dsh plugin --profile desktop add github:QWHYQ114514-celle/dsh-balance-peek
+dsh plugin --profile desktop add github:QWHYQ114514-cell/dsh-balance-peek
 
 # 从 npm 安装（发布后可用）
 dsh plugin --profile desktop add dsh-balance-peek

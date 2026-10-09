@@ -18,14 +18,14 @@
     "LICENSE"
   ],
   "license": "MIT",
-  "author": "QWHYQ114514-celle",
+  "author": "QWHYQ114514-cell",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/QWHYQ114514-celle/dsh-balance-peek.git"
+    "url": "git+https://github.com/QWHYQ114514-cell/dsh-balance-peek.git"
   },
-  "homepage": "https://github.com/QWHYQ114514-celle/dsh-balance-peek#readme",
+  "homepage": "https://github.com/QWHYQ114514-cell/dsh-balance-peek#readme",
   "bugs": {
-    "url": "https://github.com/QWHYQ114514-celle/dsh-balance-peek/issues"
+    "url": "https://github.com/QWHYQ114514-cell/dsh-balance-peek/issues"
   },
   "keywords": [
     "dsh",
