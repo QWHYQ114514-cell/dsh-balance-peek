@@ -15,15 +15,17 @@
 ## 安装
 
 ```sh
+# 从 npm 安装（推荐）
+dsh plugin --profile desktop add dsh-balance-peek
+
 # 从 GitHub 安装
 dsh plugin --profile desktop add github:QWHYQ114514-cell/dsh-balance-peek
-
-# 从 npm 安装（发布后可用）
-dsh plugin --profile desktop add dsh-balance-peek
 
 # 从本地目录安装
 dsh plugin --profile desktop add link:/path/to/dsh-balance-peek
 ```
+
+[![npm](https://img.shields.io/npm/v/dsh-balance-peek.svg)](https://www.npmjs.com/package/dsh-balance-peek) 当前版本 `1.0.0`
 
 把 `desktop` 换成你自己的 profile 名（Web 版通常是 `web`）。装好后刷新页面即可看到。
 
